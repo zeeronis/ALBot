@@ -1,11 +1,8 @@
 {
     "config": {
         "fetch": true,
-        "botKey": 1,
-        "botWebInterface": {
-            "start": true,
-            "port": 81
-        }
+        "botkey": "",
+        "discordBotKey": ""
     },
     "login": {
         "email": "random@example.com",

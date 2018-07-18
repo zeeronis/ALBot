@@ -1,6 +1,7 @@
 /**
  * Created by Nexus on 26.07.2017.
  */
+global.require = require;
 var fs = require("fs")
 
 request = require("sync-request")

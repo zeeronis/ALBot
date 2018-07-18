@@ -275,7 +275,6 @@ Game.prototype.emit = function (event, arguments) {
 Game.prototype.stop = function () {
     if (this.socket)
         this.socket.close();
-    BotWebInterface.SocketServer.getPublisher().removeInterface(this.interface);
 }
 
 async function main() {

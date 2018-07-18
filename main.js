@@ -4,22 +4,38 @@ process.on('uncaughtException', function (exception) {
 
 });
 
+const Discord = require("discord.js");
+const client = new Discord.Client();
 var child_process = require("child_process");
 var HttpWrapper = require("./httpWrapper");
 var httpWrapper = new HttpWrapper();
-var BotWebInterface = require("bot-web-interface");
 var fs = require("fs");
 var userData = require("./userData.json");
 var login = userData.login;
 var bots = userData.bots;
 
+client.on('ready', () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+});
+
+async function announce(text) {
+    var guilds = client.guilds.array();
+    for (let key in guilds) {
+        var channels = guilds[key].channels.array();
+        for (let key in channels) {
+            if (channels[key].name == "game_events")
+                channels[key].send(text);
+        }
+    }
+}
+
 async function main() {
+
+    await client.login(userData.config.discordBotKey);
+    httpWrapper = new HttpWrapper();
     var result = await httpWrapper.login(login.email, login.password);
     var characters = await httpWrapper.getCharacters();
     var userAuth = await httpWrapper.getUserAuth();
-
-    if (!result)
-        throw new Error("Login failed");
 
     if (userData.config.fetch) {
         console.log("Populating config file with data.");
@@ -37,7 +53,13 @@ async function main() {
         fs.writeFileSync("./userData.json", JSON.stringify(userData, null, 4));
         process.exit();
     }
+    if (!result)
+        throw new Error("Login failed");
 
+    let serverList = await httpWrapper.getServerList();
+    for (let i = 0; i < serverList.length; i++) {
+        startPassiveGame([serverList[i].ip, serverList[i].port]);
+    }
     //Checking for mistakes in userData.json
     if (!bots) {
         console.error("Missing field \"bots\" in userData.json");
@@ -71,23 +93,6 @@ async function main() {
             }
     }
 
-    let serverList = await httpWrapper.getServerList();
-    if (userData.config.botWebInterface.start) {
-        BotWebInterface.startOnPort(userData.config.botWebInterface.port);
-        BotWebInterface.SocketServer.getPublisher().setStructure([
-            {name: "name", type: "text", label: "name"},
-            {name: "inv", type: "text", label: "Inventory"},
-            {name: "level", type: "text", label: "Level"},
-            {name: "xp", type: "progressBar", label: "Experience", options: {color: "green"}},
-            {name: "health", type: "progressBar", label: "Health", options: {color: "red"}},
-            {name: "mana", type: "progressBar", label: "Mana", options: {color: "blue"}},
-            {name: "target", type: "text", label: "Target"},
-            {name: "status", type: "text", label: "Status"},
-            {name: "dps", type: "text", label: "DPS"},
-
-        ]);
-    }
-
     //Checks are done, starting bots.
     for (let i = 0; i < bots.length; i++) {
         let ip = "54.169.213.59";
@@ -102,6 +107,7 @@ async function main() {
         var args = [httpWrapper.sessionCookie, httpWrapper.userAuth, httpWrapper.userId, ip, port, bots[i].characterId, bots[i].runScript, userData.config.botKey];
         startGame(args);
     }
+
 }
 
 function startGame(args) {
@@ -109,30 +115,30 @@ function startGame(args) {
         stdio: [0, 1, 2, 'ipc']
     });
     var data = {};
-    var botInterface = BotWebInterface.SocketServer.getPublisher().createInterface();
-    botInterface.setDataSource(() => {
-        return data;
-    });
 
-    childProcess.on('message', (m) => {
+    childProcess.on('message', async (m) => {
         if (m.type === "status" && m.status === "disconnected") {
             childProcess.kill();
-            BotWebInterface.SocketServer.getPublisher().removeInterface(botInterface);
             startGame(args);
-        } else if(m.type === "bwiUpdate"){
-            data = m.data;
+        } else if (m.type == "announce") {
+            await announce(m.data);
         }
     });
 }
 
-async function sleep(ms) {
-    return new Promise(function (resolve) {
-        setTimeout(resolve, ms);
+function startPassiveGame(args) {
+    let childProcess = child_process.fork("./passiveGame", args, {
+        stdio: [0, 1, 2, 'ipc']
+    });
+
+    childProcess.on('message', async (m) => {
+        if (m.type === "status" && m.status === "disconnected") {
+            childProcess.kill();
+            startPassiveGame(args);
+        } else if (m.type == "announce") {
+            await announce(m.data);
+        }
     });
 }
+
 main();
-
-
-
-
-
