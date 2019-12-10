@@ -286,6 +286,7 @@ Game.prototype.init = function () {
     var goldTimeline = [],
         xpTimeline = [],
         damageTimeline = [];
+    var thenXP;
 
     var damageStart = Date.now();
     socket.on("hit", function (data) {
@@ -304,6 +305,75 @@ Game.prototype.init = function () {
         });
 
         setTimeout(function () {
+            setInterval(function () {
+                
+                //get character target
+                var targetName = "nothing";
+                if (character.target && entities[character.target]) {
+                    if (entities[character.target].player) {
+                        targetName = entities[character.target].id
+                    } else {
+                        targetName = entities[character.target].mtype;
+                    }
+                }
+
+                //calculate time until level up
+                var xpps = (character.xp - thenXP) / xpTimeline.length;
+                var time = Math.floor((character.max_xp - character.xp) / xpps);
+                var timsStr = "Err";
+                if (time > 0) {
+                    //prettify time
+                    var days = Math.floor(time / (3600 * 24));
+                    time -= 3600 * 24 * days;
+                    var hours = Math.floor(time / 3600);
+                    time -= 3600 * hours;
+                    var minutes = Math.floor(time / 60);
+                    time -= 60 * minutes;
+                    var seconds = time;
+
+                    if (hours < 10) {
+                        hours = "0" + hours;
+                    }
+                    if (minutes < 10) {
+                        minutes = "0" + minutes;
+                    }
+                    if (seconds < 10) {
+                        seconds = "0" + seconds;
+                    }
+                    timsStr = "d:" + days + " h:" + hours + " m:" + minutes + " s:" + seconds;
+                }
+
+                var info_obj = {
+                    name: character.name,
+                    ctype: character.ctype,
+                    level: character.level,
+                    xp: (character.xp * 100) / character.max_xp,
+                    inv: character.isize - character.esize + " / " + character.isize,
+                    target: targetName,
+                    isRip: character.rip,
+                    xpps: xpps,
+                    //gps: (character.gold - thenGold) / goldTimeline.length,
+                    toUp: timsStr
+                };
+
+                const dgram = require('dgram');
+                const message = Buffer.from(JSON.stringify(info_obj));
+                const client = dgram.createSocket('udp4');
+                client.send(message, 40004, 'localhost', (err) => {
+                    client.close();
+                });
+
+            }, 2000);
+
+            setInterval(function () {
+                //calculate xp per sec
+                xpTimeline.push(character.xp);
+                if (xpTimeline.length < timeFrame)
+                    thenXP = xpTimeline[0];
+                else
+                    thenXP = xpTimeline.shift();
+            }, 1000);
+
             if (uiGenerator.enableMiniMap)
                 setInterval(function () {
                     let buffer = uiGenerator.generateMiniMap(hitLog, entities);
