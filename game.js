@@ -320,7 +320,6 @@ Game.prototype.init = function () {
                 //calculate time until level up
                 var xpps = (character.xp - thenXP) / xpTimeline.length;
                 var time = Math.floor((character.max_xp - character.xp) / xpps);
-                var timsStr = "Err";
                 if (time > 0) {
                     //prettify time
                     var days = Math.floor(time / (3600 * 24));
@@ -340,7 +339,10 @@ Game.prototype.init = function () {
                     if (seconds < 10) {
                         seconds = "0" + seconds;
                     }
-                    timsStr = "d:" + days + " h:" + hours + " m:" + minutes + " s:" + seconds;
+                    time = {d: days, h: hours, m: minutes, s: seconds};
+                }
+                else {
+                    time = {d: "Inf", h: "Inf", m: "Inf", s: "Inf"};
                 }
 
                 var info_obj = {
@@ -352,8 +354,9 @@ Game.prototype.init = function () {
                     target: targetName,
                     isRip: character.rip,
                     xpps: xpps,
-                    //gps: (character.gold - thenGold) / goldTimeline.length,
-                    toUp: timsStr
+                    toUp: time,
+                    gold: (character.ctype == "merchant") ? character.gold : null,
+                    
                 };
 
                 const dgram = require('dgram');
