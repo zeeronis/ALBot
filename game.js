@@ -307,65 +307,70 @@ Game.prototype.init = function () {
         setTimeout(function () {
             setInterval(function () {
                 
-                //get character target
-                var targetName = "nothing";
-                if (character.target && entities[character.target]) {
-                    if (entities[character.target].player) {
-                        targetName = entities[character.target].id
-                    } else {
-                        targetName = entities[character.target].mtype;
+                if(!character) return;
+                try {
+
+                    //get character target
+                    var targetName = "nothing";
+                    if (character.target && entities[character.target]) {
+                        if (entities[character.target].player) {
+                            targetName = entities[character.target].id
+                        } else {
+                            targetName = entities[character.target].mtype;
+                        }
                     }
+
+                    //calculate time until level up
+                    var xpps = (character.xp - thenXP) / xpTimeline.length;
+                    var time = Math.floor((character.max_xp - character.xp) / xpps);
+                    if (time > 0) {
+                        //prettify time
+                        var days = Math.floor(time / (3600 * 24));
+                        time -= 3600 * 24 * days;
+                        var hours = Math.floor(time / 3600);
+                        time -= 3600 * hours;
+                        var minutes = Math.floor(time / 60);
+                        time -= 60 * minutes;
+                        var seconds = time;
+
+                        if (hours < 10) {
+                            hours = "0" + hours;
+                        }
+                        if (minutes < 10) {
+                            minutes = "0" + minutes;
+                        }
+                        if (seconds < 10) {
+                            seconds = "0" + seconds;
+                        }
+                        time = {d: days, h: hours, m: minutes, s: seconds};
+                    }
+                    else {
+                        time = {d: "Inf", h: "Inf", m: "Inf", s: "Inf"};
+                    }
+
+                    var info_obj = {
+                        name: character.name,
+                        ctype: character.ctype,
+                        level: character.level,
+                        xp: (character.xp * 100) / character.max_xp,
+                        inv: character.isize - character.esize + " / " + character.isize,
+                        target: targetName,
+                        isRip: character.rip,
+                        xpps: xpps,
+                        toUp: time,
+                        gold: (character.ctype == "merchant") ? character.gold : null,
+                        
+                    };
+
+                    const dgram = require('dgram');
+                    const message = Buffer.from(JSON.stringify(info_obj));
+                    const client = dgram.createSocket('udp4');
+                    client.send(message, 40004, 'localhost', (err) => {
+                        client.close();
+                    });
+                } catch (error) {
+                    console.log(error);
                 }
-
-                //calculate time until level up
-                var xpps = (character.xp - thenXP) / xpTimeline.length;
-                var time = Math.floor((character.max_xp - character.xp) / xpps);
-                if (time > 0) {
-                    //prettify time
-                    var days = Math.floor(time / (3600 * 24));
-                    time -= 3600 * 24 * days;
-                    var hours = Math.floor(time / 3600);
-                    time -= 3600 * hours;
-                    var minutes = Math.floor(time / 60);
-                    time -= 60 * minutes;
-                    var seconds = time;
-
-                    if (hours < 10) {
-                        hours = "0" + hours;
-                    }
-                    if (minutes < 10) {
-                        minutes = "0" + minutes;
-                    }
-                    if (seconds < 10) {
-                        seconds = "0" + seconds;
-                    }
-                    time = {d: days, h: hours, m: minutes, s: seconds};
-                }
-                else {
-                    time = {d: "Inf", h: "Inf", m: "Inf", s: "Inf"};
-                }
-
-                var info_obj = {
-                    name: character.name,
-                    ctype: character.ctype,
-                    level: character.level,
-                    xp: (character.xp * 100) / character.max_xp,
-                    inv: character.isize - character.esize + " / " + character.isize,
-                    target: targetName,
-                    isRip: character.rip,
-                    xpps: xpps,
-                    toUp: time,
-                    gold: (character.ctype == "merchant") ? character.gold : null,
-                    
-                };
-
-                const dgram = require('dgram');
-                const message = Buffer.from(JSON.stringify(info_obj));
-                const client = dgram.createSocket('udp4');
-                client.send(message, 40004, 'localhost', (err) => {
-                    client.close();
-                });
-
             }, 2000);
 
             setInterval(function () {
